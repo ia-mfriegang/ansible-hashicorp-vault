@@ -9,8 +9,8 @@
 
 - DNS records for each Vault node, this dns name should match the common name on the certs. 
 
- - OPTIONAL - AWS KMS key for automatic unsealing. This isn't required, but is preferable for production environment. This needs an associated IAM policy and IAM user. See the example policy below 
- - 
+ - OPTIONAL - AWS KMS key for automatic unsealing. This isn't required, but is preferable for production environment. This needs an associated IAM policy and IAM user. 
+ 
  ---
 ### Preparation
 1. Prepare a variables file for Ansible(this is under roles/defaults/main.yml) Adjust values as necessary.
