@@ -1,0 +1,35 @@
+# Last Modified: Wed Oct 19 10:25:05 2022
+#include <tunables/global>
+
+# vim:syntax=apparmor
+# AppArmor policy for vault
+# ###AUTHOR###
+# ###COPYRIGHT###
+# ###COMMENT###
+# No template variables specified
+
+
+/usr/bin/vault flags=(attach_disconnected) {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  /etc/mime.types r,
+  /etc/vault.d/vault.hcl r,
+  /proc/sys/net/core/somaxconn r,
+  /run/systemd/notify: Rw,
+  /sys/kernel/mm/transparent_hugepage/hpage_pmd_size r,
+  /usr/bin/vault r,
+  /usr/share/mime/globs2 r,
+  owner /home/*/.cache/snowflake/ocsp_response_cache.json rw,
+  owner /opt/vault/data/raft/ w,
+  owner /opt/vault/data/raft/raft.db rwk,
+  owner /opt/vault/data/raft/snapshots/** rwk,
+  owner /opt/vault/data/raft/snapshots/ w,
+  owner /opt/vault/data/vault.db rwk,
+  owner /opt/vault/tls/tls.crt r,
+  owner /opt/vault/tls/tls.key r,
+  owner /root/.cache/snowflake/ocsp_response_cache.json rw,
+  owner /var/log/vault_audit.log r,
+  owner /var/log/vault_audit.log w,
+
+}

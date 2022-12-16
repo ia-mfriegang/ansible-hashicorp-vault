@@ -1,0 +1,14 @@
+vault_cluster: true
+aws_kms_unseal: true
+vault_tls: true
+vault1_url: vault-1.local # dns name for the 1st node
+vault2_url: vault-2.local # dns name for the 2nd node
+vault3_url: vault-3.local # dns name for the 3rd node
+vault1_ip: 10.0.0.1  # ip of the 1st node
+vault2_ip: 10.0.0.2 # ip of the 2nd node
+vault3_ip: 10.0.0.3 # ip of the 3rd node
+api_ip: 10.0.0.4
+api_url: vault.local
+kms_id: # your KMS key's ID 
+secret_key: # your aws secret key. This should be encrypted with ansible-vault at minimum
+access_key: # your aws access key. This isnt as sensitive, but you might as well encrypt it as well

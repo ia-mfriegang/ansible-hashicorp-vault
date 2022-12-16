@@ -1,0 +1,96 @@
+disable_cache           = true
+disable_mlock           = true
+ui                      = true
+
+listener "tcp" {
+   address              = "0.0.0.0:8200"
+   cluster_address         = "0.0.0.0:8201"
+   tls_client_ca_file   = "/opt/vault/tls/ca.pem"
+   tls_cert_file        = "/opt/vault/tls/tls.crt"
+   tls_key_file         = "/opt/vault/tls/tls.key"
+{% if vault_tls == "true" %}
+   tls_disable          = false
+{% else %}
+   tls_disable          = true
+{% endif %}
+   tls_disable_client_certs = true
+}
+{% if vault_cluster %}
+## 3 node cluster config
+
+storage "raft" {
+
+   node_id              = "{{  ansible_nodename }}"
+   path                 = "/opt/vault/data"
+
+   retry_join {
+
+{% if vault_tls == "true" %}
+      leader_api_addr   = "https://{{  vault1_url  }}:8200"
+{% else %}
+      leader_api_addr   = "http://{{  vault1_url  }}:8200"
+{% endif %}
+
+
+   
+   }
+   
+   retry_join {
+
+{% if vault_tls == "true" %}
+      leader_api_addr   = "https://{{  vault2_url  }}:8200"
+{% else %}
+      leader_api_addr   = "http://{{  vault2_url  }}:8200"
+{% endif %}
+   
+   }
+   
+   retry_join {
+
+{% if vault_tls == "true" %}
+      leader_api_addr   = "https://{{  vault3_url  }}:8200"
+{% else %}
+      leader_api_addr   = "http://{{  vault3_url  }}:8200"
+{% endif %}
+   
+   }
+
+
+
+}
+
+{% else %}
+## Single Node config (dont use this in prod)
+storage "file" {
+  path = "/mnt/vault/data"
+}
+{% endif %}
+
+{% if aws_kms_unseal %}
+seal "awskms" {
+
+      kms_key_id        = "{{  kms_id  }}"
+      region            = "{{ region  }}"
+}
+{% else %}
+
+{% endif %}
+
+{% if vault_tls == "true" %}
+cluster_addr            = "https://{{  vault_node_url }}:8201"
+{% else %}
+cluster_addr            = "http://{{  vault_node_url }}:8201"
+{% endif %}
+
+{% if vault_tls == "true" %}
+api_addr                = "https://{{  api_url }}:8200"
+{% else %}
+api_addr                = "http://{{  api_url }}:8200"
+{% endif %}
+
+max_lease_ttl           = "10h"
+default_lease_ttl       = "10h"
+cluster_name            = "vault"
+raw_storage_endpoint    = true
+disable_sealwrap        = true
+disable_printable_check = true

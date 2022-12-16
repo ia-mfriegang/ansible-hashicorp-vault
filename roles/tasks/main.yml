@@ -1,0 +1,175 @@
+- name: add hashicorp gpg key
+  ansible.builtin.apt_key:
+    url: https://apt.releases.hashicorp.com/gpg 
+    state: present
+
+- name: add hashicorp apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{  ansible_distribution_release  }} main"
+    state: present
+    mode: 0644
+
+- name: install vault and keepalived
+  ansible.builtin.apt:
+    name: 
+      - vault
+      - keepalived
+    state: present
+    update_cache: true
+  register: vaultinstall
+  retries: 5
+  until: vaultinstall is success
+  when: vault_cluster
+
+- name: install vault only
+  ansible.builtin.apt:
+    name: 
+      - vault
+    state: present
+    update_cache: true
+  register: vaultinstall
+  retries: 5
+  until: vaultinstall is success
+  when: not vault_cluster
+
+- name: add keepalived user
+  ansible.builtin.user:
+    name: keepalived_script
+    create_home: false
+    shell: /sbin/nologin
+  when: vault_cluster
+
+- name: make directories
+  ansible.builtin.file:
+    path: "{{  item  }}"
+    state: directory
+    owner: root
+    group: vault
+    mode: 0750
+  with_items:
+    - /etc/vault.d
+    - /opt/vault/tls
+
+- name: make vault data directory
+  ansible.builtin.file:
+    path: /opt/vault/data
+    owner: vault
+    group: vault
+    mode: 0750
+    state: directory
+
+- name: create directory for vault storage
+  ansible.builtin.file:
+    path: /mnt/vault
+    owner: vault
+    group: vault
+    mode: 0700
+    state: directory
+  when: not vault_cluster
+
+#- name: touch vault storage file (if using local file storage)
+#  ansible.builtin.file:
+#    path: /mnt/vault/data
+#    owner: vault
+#    group: vault
+#    mode: 0700
+#    state: file
+#  when: not vault_cluster
+
+- name: template vault config file
+  ansible.builtin.template:
+    src: templates/vault.hcl.j2
+    dest: /etc/vault.d/vault.hcl
+    owner: root
+    group: vault
+    mode: 0750
+    
+- name: template vault env file
+  ansible.builtin.template:
+    src: templates/vault.env.j2
+    dest: /etc/vault.d/vault.env
+    owner: root
+    group: vault
+    mode: 0750
+
+- name: template keepalived config file
+  ansible.builtin.template:
+    src: templates/keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0644
+  when: vault_cluster
+
+- name: template healthcheck script
+  ansible.builtin.template:
+    src: templates/vault_health.sh.j2
+    dest: /etc/keepalived/vault_health.sh
+    owner: keepalived_script
+    group: keepalived_script
+    mode: 0700
+  when: vault_cluster
+
+- name: allow port through UFW for vault
+  ansible.builtin.shell: "{{  item  }}"
+  with_items:
+    - sudo ufw allow 8200
+    - sudo ufw allow 8201
+    - sudo ufw allow out 8200
+    - sudo ufw allow out 8201
+    - sudo ufw allow 443
+
+- name: enable and start keepalived service
+  ansible.builtin.systemd:
+    name: keepalived
+    state: started
+    enabled: true
+
+- name: disable swap
+  ansible.builtin.lineinfile:
+    regexp: 'swap\.img'
+    state: absent
+    path: /etc/fstab
+  tags: swap_disable
+
+- name: disable core dumps
+  ansible.builtin.systemd:
+    name: apport
+    state: stopped
+    enabled: false
+    masked: true
+  tags: disable_core_dumps
+    
+- name: template /etc/apparmor.d/usr.bin.vault
+  ansible.builtin.template:
+    src: templates/usr.bin.vault.j2
+    dest: /etc/apparmor.d/usr.bin.vault
+    owner: root
+    group: root
+    mode: 0644
+  tags: apparmor
+
+- name: reload apparmor profile for vault
+  ansible.builtin.command: sudo apparmor_parser -r /etc/apparmor.d/usr.bin.vault
+  tags: apparmor
+
+- name: set apparmor to enforce for Vault
+  ansible.builtin.command: sudo aa-enforce /usr/bin/vault
+  tags: apparmor
+
+- name: touch vault log file
+  ansible.builtin.file:
+    path: /var/log/vault_audit.log
+    owner: vault
+    group: vault
+    mode: 0600
+    state: touch
+
+- name: enable Vault Service (this will error when trying to start the service because of apparmor)
+  ansible.builtin.systemd:
+    name: vault
+    enabled: true
+    state: started
+  ignore_errors: true
+- debug:
+    msg: "Vault should be set up, but you still need to enable the service manually, as well as configure AppArmor exceptions"

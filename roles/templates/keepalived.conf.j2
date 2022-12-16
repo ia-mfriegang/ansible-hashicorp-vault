@@ -1,0 +1,25 @@
+global_defs {
+    router_id LVS_LB
+    enable_script_security
+}
+vrrp_script check_vault_health {
+    script "/etc/keepalived/vault_health.sh https://{{  vault_node_id  }}:8200/v1/sys/health"
+    interval 3
+}
+vrrp_instance VI_1 {
+    state MASTER
+    virtual_router_id 100
+    priority 100
+    advert_int 1
+    interface ens192
+    virtual_ipaddress {
+        # Floating IP
+        {{  api_ip  }}
+    }
+    track_interface {
+        ens192
+    }
+    track_script {
+        check_vault_health
+    }
+}
