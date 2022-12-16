@@ -1,0 +1,5 @@
+- name: install hashicorp vault
+  hosts: all
+  become: true
+  roles:
+    - hashicorp_vault
